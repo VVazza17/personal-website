@@ -1,8 +1,26 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import Home from "./pages/Home";
+import Projects from "./pages/Projects";
+import Chat from "./pages/Chat";
+
+
 export default function App() {
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-            <h1 className="text-4xl font-bold">🚀 Tailwind is Working!</h1>
-            <div className="text-pink-500 text-2xl"> 🔥 If you see this red, Tailwind works</div>
-        </div>
+        <BrowserRouter>
+            <div className="min-h-screen bg-gray-900 text-white">
+                <Navbar />
+                <main className="mx-auto max-w-5xl px-4 py-10">
+                    <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/projects" element={<Projects />} />
+                        <Route path="/chat" element={<Chat />} />
+                    </Routes>
+                </main>
+                <Footer />
+            </div>
+        </BrowserRouter>
     );
+    
 }
