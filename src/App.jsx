@@ -4,6 +4,7 @@ import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import Projects from "./pages/Projects";
 import Chat from "./pages/Chat";
+import NotFound from "./pages/NotFound"
 
 
 export default function App() {
@@ -16,11 +17,12 @@ export default function App() {
                         <Route path="/" element={<Home />} />
                         <Route path="/projects" element={<Projects />} />
                         <Route path="/chat" element={<Chat />} />
+                        <Route path="*" element={<NotFound />} />
                     </Routes>
                 </main>
                 <Footer />
             </div>
         </BrowserRouter>
     );
-    
+
 }

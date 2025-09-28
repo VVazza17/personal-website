@@ -1,12 +1,16 @@
+import { NavLink } from "react-router-dom";
+
 export default function Navbar() {
+    const linkClass = ({ isActive }) => `hover:text-pink-400 ${isActive ? "text-pink-400" : ""}`;
+
     return (
         <header className="w-full border-b border-white/10 bg-gray-900/60 backdrop-blur">
             <nav className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
-                <a href="/" className="font-semibold">Kyle.dev</a>
+                <NavLink to="/" className="font-semibold">Kyle.dev</NavLink>
                 <div className="flex gap-4 text-sm">
-                    <a href="/" className="hover:text-pink-400">Home</a>
-                    <a href="/projects" className="hover:text-pink-400">Projects</a>
-                    <a href="/chat" className="hover:text-pink-400">Chat</a>
+                    <NavLink to="/" className={linkClass}>Home</NavLink>
+                    <NavLink to="/projects" className={linkClass}>Projects</NavLink>
+                    <NavLink to="/chat" className={linkClass}>Chat</NavLink>
                 </div>
             </nav>
         </header>
