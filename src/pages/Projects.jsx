@@ -9,16 +9,10 @@ export default function Projects() {
     useEffect(() => {
         (async () => {
             try {
-                // Temporary mock until API exists
-                // const data = await getProjects();
-                const data = [
-                    { id: "1", title: "Production Testing Tool", stack: "Python, C"},
-                    { id: "2", title: "Personal Website", stack: "JavaScript, AWS Lambda, DynamoDB, PyTorch"},
-                ];
+                const data = await getProjects();
                 setItems(data);
                 setStatus("done");
             }
-
             catch {
                 setStatus("error");
             }
