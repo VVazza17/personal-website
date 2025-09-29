@@ -18,7 +18,7 @@ export default function Chat() {
         try {
             const { reply } = await sendChatMessage(text);
             console.log("[Chat] reply:", reply)
-            setMessages((m) => [...m, { role: "bot", text: reply }]);
+            setMessages(m => [...m, { role: "bot", text: reply }]);
         } catch (err) {
             console.error("[Chat] error:", err);
             setMessages((m) => [...m, { role: "bot", text: "Error" }]);

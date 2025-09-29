@@ -15,7 +15,11 @@ app.get("/projects", (_req, res) => {
 app.post("/chat", (req, res) => {
     const { message } = req.body || {};
     //later call Lambda/SageMaker but for now
-    res.json({ reply: `You said: ${message}". (Mock reply)`});
+    res.json({ 
+        id: Date.now().toString(),
+        reply: `You said: ${message}. (Mock reply)`,
+        timestamp: new Date().toISOString()
+    });
 });
 
 const port = process.env.PORT ?? 3000;
