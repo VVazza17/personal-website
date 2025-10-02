@@ -1,12 +1,16 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { Table, AttributeType, BillingMode} from 'aws-cdk-lib/aws-dynamodb';
 
-export class BackendStack extends cdk.Stack {
+export class PersonalSiteBackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    const table = new Table(this, 'PersonalSiteTable', {
+      partitionKey: { name: 'PK', type: AttributeType.STRING},
+      sortKey: { name: 'SK', type: AttributeType.STRING},
+      billingMode: BillingMode.PAY_PER_REQUEST
+    });
 
     // example resource
     // const queue = new sqs.Queue(this, 'BackendQueue', {
