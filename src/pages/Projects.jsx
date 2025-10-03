@@ -28,10 +28,18 @@ export default function Projects() {
             <ul className="grid gap-4 md:grid-cols-2">
                 {items.map(p => (
                     <li key={p.id} className="rounded-lg border border-white/10 p-4">
+                        {/* Project name */}
+                        <h3 className="font-semibold text-lg">{p.id}</h3>
+
+                        {/* Tags */}
                         {p.tags?.length > 0 && (
                             <p className="text-xs text-white/50 mt-2">{p.tags.join(" · ")}</p>
                         )}
+
+                        {/* Summary */}
                         <p className="text-sm text-white/70">{p.summary}</p>
+
+                        {/* Date */}
                         {p.publishedAt && (
                             <p className="text-xs text-white/40 mt-1">
                                 Published: {new Date(p.publishedAt).toLocaleDateString()}
