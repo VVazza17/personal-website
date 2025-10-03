@@ -3,7 +3,7 @@ import { Construct } from 'constructs';
 import { Table, AttributeType, BillingMode} from 'aws-cdk-lib/aws-dynamodb';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { RestApi, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
+import { RestApi, LambdaIntegration, Cors } from 'aws-cdk-lib/aws-apigateway';
 import * as path from 'path';
 
 export class BackendStack extends cdk.Stack {
@@ -31,7 +31,13 @@ export class BackendStack extends cdk.Stack {
 
     table.grantReadData(projectsGetAll);
 
-    const api = new RestApi(this, 'PersonalSiteApi');
+    const api = new RestApi(this, 'PersonalSiteApi', {
+      defaultCorsPreflightOptions: {
+        allowOrigins: Cors.ALL_ORIGINS,
+        allowMethods: Cors.ALL_METHODS,
+        allowHeaders: ["Content-Type", "Authorization"]
+      }
+    });
     api.root.addResource('projects')
       .addMethod('GET', new LambdaIntegration(projectsGetAll));
   }

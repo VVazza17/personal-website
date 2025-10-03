@@ -18,7 +18,7 @@ export const handler = async () => {
         }));
 
         const projects = (out.Items ?? []).map((it: any) => ({
-            title: it.SK,
+            id: it.SK,
             tags: Array.isArray(it.tags) ? it.tags : [],
             summary: it.summary ?? "",
             publishedAt: it.GSI1SK ?? null
@@ -26,14 +26,20 @@ export const handler = async () => {
 
         return {
             statusCode: 200,
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
             body: JSON.stringify(projects)
         };
     } catch (err) {
         console.log("GET /projects failed:", err);
         return {
             statusCode: 500,
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
             body: JSON.stringify({ error: "Internal"})         
         };
     }
