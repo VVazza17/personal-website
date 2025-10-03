@@ -6,7 +6,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { RestApi, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
 import * as path from 'path';
 
-export class PersonalSiteBackendStack extends cdk.Stack {
+export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
