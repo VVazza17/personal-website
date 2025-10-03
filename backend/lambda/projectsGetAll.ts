@@ -11,7 +11,8 @@ export const handler = async () => {
         const out = await doc.send(new QueryCommand({
             TableName: TABLE,
             IndexName: GSI1,
-            KeyConditionExpression: "GSIPK = :g",
+            KeyConditionExpression: " #g = :g",
+            ExpressionAttributeNames: { "#g": "GSI1PK" },
             ExpressionAttributeValues: { ":g": "PROJECT" },
             ScanIndexForward: false
         }));
