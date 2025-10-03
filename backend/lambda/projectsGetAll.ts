@@ -11,20 +11,29 @@ export const handler = async () => {
         const out = await doc.send(new QueryCommand({
             TableName: TABLE,
             IndexName: GSI1,
-            KeyConditionExpression: " #g = :g",
+            KeyConditionExpression: "#g = :g",
             ExpressionAttributeNames: { "#g": "GSI1PK" },
             ExpressionAttributeValues: { ":g": "PROJECT" },
             ScanIndexForward: false
         }));
 
+        const projects = (out.Items ?? []).map((it: any) => ({
+            title: it.SK,
+            tags: Array.isArray(it.tags) ? it.tags : [],
+            summary: it.summary ?? "",
+            publishedAt: it.GSI1SK ?? null
+        }));
+
         return {
             statusCode: 200,
-            body: JSON.stringify(out.Items ?? [])
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(projects)
         };
     } catch (err) {
-        console.log(err);
+        console.log("GET /projects failed:", err);
         return {
             statusCode: 500,
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ error: "Internal"})         
         };
     }
