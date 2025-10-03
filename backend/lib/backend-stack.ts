@@ -7,14 +7,16 @@ export class PersonalSiteBackendStack extends cdk.Stack {
     super(scope, id, props);
 
     const table = new Table(this, 'PersonalSiteTable', {
-      partitionKey: { name: 'PK', type: AttributeType.STRING},
-      sortKey: { name: 'SK', type: AttributeType.STRING},
-      billingMode: BillingMode.PAY_PER_REQUEST
+      partitionKey: { name: 'PK', type: AttributeType.STRING },
+      sortKey: { name: 'SK', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
     });
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'BackendQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    // Add a Global Secondary Index (GSI)
+    table.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: { name: 'GSI1PK', type: AttributeType.STRING },
+      sortKey: { name: 'GSISK', type: AttributeType.STRING },
+    });
   }
 }
