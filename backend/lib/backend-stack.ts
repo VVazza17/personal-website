@@ -20,13 +20,13 @@ export class BackendStack extends cdk.Stack {
     table.addGlobalSecondaryIndex({
       indexName: 'GSI1',
       partitionKey: { name: 'GSI1PK', type: AttributeType.STRING },
-      sortKey: { name: 'GSISK', type: AttributeType.STRING },
+      sortKey: { name: 'GSI1SK', type: AttributeType.STRING },
     });
 
-    const projectsGetAll = new NodejsFunction(this, 'ProjectsGetALl', {
+    const projectsGetAll = new NodejsFunction(this, 'ProjectsGetAll', {
       entry: path.join(__dirname, '..', 'lambda', 'projectsGetAll.ts'),
       runtime: Runtime.NODEJS_20_X,
-      environment: { Table: table.tableName, GSI1: 'GSI1' }
+      environment: { TABLE_NAME: table.tableName, GSI1_NAME: 'GSI1' }
     });
 
     table.grantReadData(projectsGetAll);

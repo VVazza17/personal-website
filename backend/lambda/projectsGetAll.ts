@@ -3,8 +3,8 @@ import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
 
 const doc = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
-const TABLE = process.env.TABLE!;
-const GSI1 = process.env.GSI1!;
+const TABLE = process.env.TABLE_NAME!;
+const GSI1 = process.env.GSI1_NAME!;
 
 export const handler = async () => {
     try {
