@@ -47,6 +47,14 @@ export class BackendStack extends cdk.Stack {
     });
     table.grantWriteData(contactPost);
 
+    // POST /chat
+    const chatPost = new NodejsFunction(this, "ChatPost", {
+      entry: path.join(__dirname, "..", "lambda", "chatPost.ts"),
+      runtime: Runtime.NODEJS_20_X,
+      environment: { TABLE_NAME: table.tableName },
+    });
+    table.grantWriteData(chatPost);
+
     const api = new RestApi(this, 'PersonalSiteApi', {
       defaultCorsPreflightOptions: {
         allowOrigins: Cors.ALL_ORIGINS,
@@ -66,5 +74,9 @@ export class BackendStack extends cdk.Stack {
     // /contact
     const contact = api.root.addResource('contact');
     contact.addMethod('POST', new LambdaIntegration(contactPost));
+
+    // /chat
+    const chat = api.root.addResource('chat');
+    chat.addMethod('POST', new LambdaIntegration(chatPost));
   }
 }
