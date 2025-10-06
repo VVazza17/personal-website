@@ -39,6 +39,14 @@ export class BackendStack extends cdk.Stack {
     });
     table.grantReadData(projectsGetById);
 
+    // POST /contact
+    const contactPost = new NodejsFunction(this, "ContactPost", {
+      entry: path.join(__dirname, "..", "lambda", "contactPost.ts"),
+      runtime: Runtime.NODEJS_20_X,
+      environment: { TABLE_NAME: table.tableName },
+    });
+    table.grantWriteData(contactPost);
+
     const api = new RestApi(this, 'PersonalSiteApi', {
       defaultCorsPreflightOptions: {
         allowOrigins: Cors.ALL_ORIGINS,
@@ -54,5 +62,9 @@ export class BackendStack extends cdk.Stack {
     // /projects/{id}
     const projectById = projects.addResource('{id}');
     projectById.addMethod('GET', new LambdaIntegration(projectsGetById));
+
+    // /contact
+    const contact = api.root.addResource('contact');
+    contact.addMethod('POST', new LambdaIntegration(contactPost));
   }
 }
