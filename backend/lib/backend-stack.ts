@@ -23,13 +23,21 @@ export class BackendStack extends cdk.Stack {
       sortKey: { name: 'GSI1SK', type: AttributeType.STRING },
     });
 
+    // GET /projects
     const projectsGetAll = new NodejsFunction(this, 'ProjectsGetAll', {
       entry: path.join(__dirname, '..', 'lambda', 'projectsGetAll.ts'),
       runtime: Runtime.NODEJS_20_X,
       environment: { TABLE_NAME: table.tableName, GSI1_NAME: 'GSI1' }
     });
-
     table.grantReadData(projectsGetAll);
+
+    // GET /projects/{id} 
+    const projectsGetById = new NodejsFunction(this, 'ProjectsGetById', {
+      entry: path.join(__dirname, '..', 'lambda', 'projectsGetById.ts'),
+      runtime: Runtime.NODEJS_20_X,
+      environment: { TABLE_NAME: table.tableName }
+    });
+    table.grantReadData(projectsGetById);
 
     const api = new RestApi(this, 'PersonalSiteApi', {
       defaultCorsPreflightOptions: {
@@ -38,7 +46,13 @@ export class BackendStack extends cdk.Stack {
         allowHeaders: ["Content-Type", "Authorization"]
       }
     });
-    api.root.addResource('projects')
-      .addMethod('GET', new LambdaIntegration(projectsGetAll));
+
+    // /projects
+    const projects = api.root.addResource('projects');
+    projects.addMethod('GET', new LambdaIntegration(projectsGetAll));
+
+    // /projects/{id}
+    const projectById = projects.addResource('{id}');
+    projectById.addMethod('GET', new LambdaIntegration(projectsGetById));
   }
 }
