@@ -1,21 +1,50 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export async function getProjects() {
-    const res = await fetch(`${BASE_URL}/projects`);
-    if (!res.ok) throw new Error("Failed to fetch projects");
-    return res.json();
+export async function withRetry(fn, attempts = 2) {
+  try { return await fn(); }
+  catch (e) {
+    if (attempts <= 0) throw e;
+    await new Promise(r => setTimeout(r, 400));
+    return withRetry(fn, attempts - 1);
+  }
 }
 
-export async function sendChatMessage(message) {
-    console.log("[api] POST", `${BASE_URL}/chat`, { message });
-    const res = await fetch(`${BASE_URL}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+export async function getProjects() {
+  return withRetry(async () => {
+    const r = await fetch(`${BASE_URL}/projects`);
+    if (!r.ok) throw new Error("Failed to load projects");
+    return r.json();
+  });
+}
+
+export async function getProjectById(id) {
+  return withRetry(async () => {
+    const r = await fetch(`${BASE_URL}/projects/${id}`);
+    if (!r.ok) throw new Error("Failed to load project");
+    return r.json();
+  });
+}
+
+export async function sendChatMessage(text) {
+  return withRetry(async () => {
+    const r = await fetch(`${BASE_URL}/chat`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ message: text }),
     });
-    if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status}: ${text}`);
-    } 
-    return res.json();
-}   
+    if (!r.ok) throw new Error("Chat failed");
+    return r.json();
+  });
+}
+
+export async function submitContact({ name, email, message }) {
+  return withRetry(async () => {
+    const r = await fetch(`${BASE_URL}/contact`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ name, email, message }),
+    });
+    if (!r.ok) throw new Error("Contact failed");
+    return r.json();
+  });
+}
