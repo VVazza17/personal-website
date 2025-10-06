@@ -25,12 +25,12 @@ export async function getProjectById(id) {
   });
 }
 
-export async function sendChatMessage(text) {
+export async function sendChatMessage(text, sessionId) {
   return withRetry(async () => {
     const r = await fetch(`${BASE_URL}/chat`, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ sessionId, message: text }),
     });
     if (!r.ok) throw new Error("Chat failed");
     return r.json();
