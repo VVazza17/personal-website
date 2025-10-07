@@ -25,7 +25,9 @@ export async function getProjectById(id) {
   });
 }
 
-export async function sendChatMessage(text, sessionId) {
+export async function sendChatMessage({text, sessionId}) {
+  console.log("POST", `${BASE_URL}/chat`, { text, sessionId })
+
   return withRetry(async () => {
     const r = await fetch(`${BASE_URL}/chat`, {
       method: "POST",

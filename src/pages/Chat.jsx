@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { sendChatMessage } from "../lib/api";
+import { getSessionId } from "../lib/session";
 
 export default function Chat() {
     useEffect(() => {document.title = "Chat | Kyle Deng"; }, []);
 
+    const sessionId = getSessionId();
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [sending, setSending] = useState(false);
@@ -23,7 +25,7 @@ export default function Chat() {
         setInput("")
 
         try {
-            const { reply } = await sendChatMessage(text);
+            const { reply } = await sendChatMessage({text, sessionId});
             setMessages(m => [...m, { role: "bot", text: reply }]);
         } catch (err) {
             setMessages((m) => [...m, { role: "bot", text: "Sorry, temporary error. Try again." }]);

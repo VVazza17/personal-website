@@ -6,11 +6,23 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 const doc = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.TABLE_NAME!;
 
+const CORS = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+};
+
 export const handler = async (event: APIGatewayProxyEvent) => {
     try {
         const body = event.body ? JSON.parse(event.body) : {};
         const { sessionId, message } = body;
-        if (!sessionId || typeof message !== "string") return { statusCode: 400, body: "sessionId and message are required" };
+        
+        if (!sessionId || typeof message !== "string") { 
+            return {
+                statusCode: 400,
+                headers: CORS, 
+                body: JSON.stringify({ error: "sessionId and message are required" }), 
+            };
+        }
 
         const now = new Date().toISOString();
         const id  = randomUUID();
@@ -29,14 +41,15 @@ export const handler = async (event: APIGatewayProxyEvent) => {
 
         return {
         statusCode: 200,
-        headers: { "Content-Type":"application/json", "Access-Control-Allow-Origin":"*" },
-        body: JSON.stringify({ echo: message, id, createdAt: now })
+        headers: CORS,
+        body: JSON.stringify({ reply: message, id, createdAt: now })
         };
     } catch (e) {
         console.error(e);
-        return { statusCode: 500, 
-            headers:{ "Access-Control-Allow-Origin":"*" }, 
-            body: JSON.stringify({ error:"Internal" }) 
+        return { 
+            statusCode: 500, 
+            headers: CORS, 
+            body: JSON.stringify({ error:"Internal" }),
         };
     }
 };
