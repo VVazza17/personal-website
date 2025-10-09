@@ -20,3 +20,14 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# CDK (AWS)
+cdk.out/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Logs
+*.log
