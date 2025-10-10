@@ -48,22 +48,6 @@ export class BackendStack extends cdk.Stack {
     });
     table.grantReadData(projectsGetAll);
 
-    // GET /projects/{id} 
-    const projectsGetById = new NodejsFunction(this, 'ProjectsGetById', {
-      entry: path.join(__dirname, '..', 'lambda', 'projectsGetById.ts'),
-      runtime: Runtime.NODEJS_20_X,
-      environment: { TABLE_NAME: table.tableName }
-    });
-    table.grantReadData(projectsGetById);
-
-    // POST /contact
-    const contactPost = new NodejsFunction(this, "ContactPost", {
-      entry: path.join(__dirname, "..", "lambda", "contactPost.ts"),
-      runtime: Runtime.NODEJS_20_X,
-      environment: { TABLE_NAME: table.tableName },
-    });
-    table.grantWriteData(contactPost);
-
     // POST /chat
     const chatPost = new NodejsFunction(this, "ChatPost", {
       entry: path.join(__dirname, "..", "lambda", "chatPost.ts"),
@@ -93,14 +77,6 @@ export class BackendStack extends cdk.Stack {
     // /projects
     const projects = api.root.addResource('projects');
     projects.addMethod('GET', new LambdaIntegration(projectsGetAll));
-
-    // /projects/{id}
-    const projectById = projects.addResource('{id}');
-    projectById.addMethod('GET', new LambdaIntegration(projectsGetById));
-
-    // /contact
-    const contact = api.root.addResource('contact');
-    contact.addMethod('POST', new LambdaIntegration(contactPost));
 
     // /chat
     const chat = api.root.addResource('chat');
