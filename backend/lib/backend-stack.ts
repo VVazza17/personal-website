@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as ddb from 'aws-cdk-lib/aws-dynamodb';
 import { RemovalPolicy } from 'aws-cdk-lib';
+import { DockerImageFunction, DockerImageCode } from 'aws-cdk-lib/aws-lambda';
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -40,6 +41,18 @@ export class BackendStack extends cdk.Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
+    // Embeddings Lambda (Docker)
+    const embedFn = new DockerImageFunction(this, 'EmbedFn', {
+      code: DockerImageCode.fromImageAsset(
+        path.join(__dirname, '..', '..', 'ml', 'embeddings')
+      ),
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(10),
+      environment: {
+        EMBED_MODEL: 'intfloat/e5-small-v2',
+      },
+    });
+
     // GET /projects
     const projectsGetAll = new NodejsFunction(this, 'ProjectsGetAll', {
       entry: path.join(__dirname, '..', 'lambda', 'projectsGetAll.ts'),
@@ -57,14 +70,17 @@ export class BackendStack extends cdk.Stack {
         DDB_TABLE: cacheTable.tableName,
         S3_BUCKET: docsBucket.bucketName,
         CACHE_TTL_HOURS: process.env.CACHE_TTL_HOURS ?? '48',
-        USE_RERANK: process.env.PG_CONN ?? '',
-        PG_SCHEMA: process.env.PG_SCHEMA ?? 'public'
+        USE_RERANK: process.env.USE_RERANK ?? 'false',
+        PG_SCHEMA: process.env.PG_SCHEMA ?? 'public',
+        PG_CONN: process.env.PG_CONN ?? '',
+        EMBED_FN_NAME: embedFn.functionName,
       },
       memorySize: 512,
     });
     table.grantWriteData(chatPost);
     cacheTable.grantReadWriteData(chatPost);
     docsBucket.grantRead(chatPost)
+    embedFn.grantInvoke(chatPost);
 
     const api = new RestApi(this, 'PersonalSiteApi', {
       defaultCorsPreflightOptions: {
