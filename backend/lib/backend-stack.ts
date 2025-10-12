@@ -43,13 +43,15 @@ export class BackendStack extends cdk.Stack {
 
     // Embeddings Lambda (Docker)
     const embedFn = new DockerImageFunction(this, 'EmbedFn', {
-      code: DockerImageCode.fromImageAsset(
-        path.join(__dirname, '..', '..', 'ml', 'embeddings')
-      ),
-      memorySize: 1024,
-      timeout: cdk.Duration.seconds(10),
-      environment: {
+      code: DockerImageCode.fromImageAsset(path.join(__dirname, '..', '..', 'ml', 'embeddings')),
+      memorySize: 1536,
+      timeout: cdk.Duration.seconds(60),
+      environment: { 
         EMBED_MODEL: 'intfloat/e5-small-v2',
+        HF_HOME: '/tmp/hf',
+        TRANSFORMERS_CACHE: '/tmp/hf/transformers',
+        SENTENCE_TRANSFORMERS_HOME: '/tmp/hf/sentencetransformers',
+        TORCH_HOME: '/tmp/hf/torch',
       },
     });
 
@@ -75,7 +77,8 @@ export class BackendStack extends cdk.Stack {
         PG_CONN: process.env.PG_CONN ?? '',
         EMBED_FN_NAME: embedFn.functionName,
       },
-      memorySize: 512,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(45),
     });
     table.grantWriteData(chatPost);
     cacheTable.grantReadWriteData(chatPost);
