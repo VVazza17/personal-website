@@ -138,7 +138,7 @@ export const handler = async (event: APIGatewayProxyEvent) => {
         return {
             statusCode: 200,
             headers: CORS,
-            body: JSON.stringify({ reply: message, id, createdAt: now })
+            body: JSON.stringify({ ...value, id, createdAt: now })
         };
 
     }   catch (e) {
