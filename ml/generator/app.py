@@ -1,7 +1,7 @@
 import json, os, torch
 from transformers import T5ForConditionalGeneration, T5TokenizerFast
 
-MODEL_NAME = os.getenv("GEN_MODEL", "google/flan-t5-base")  # small->base are fine on CPU
+MODEL_NAME = os.getenv("GEN_MODEL", "google/flan-t5-small")
 DEVICE = "cpu"
 
 tokenizer = T5TokenizerFast.from_pretrained(MODEL_NAME)
