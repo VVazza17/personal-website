@@ -10,7 +10,6 @@ ENV HF_HOME=/var/task/hf \
     MKL_NUM_THREADS=1 \
     TOKENIZERS_PARALLELISM=false
 
-
 RUN pip install --upgrade pip
 
 # CPU torch

@@ -1,11 +1,14 @@
-import argparse, hashlib, io, json, os, re, sys
+import argparse, hashlib, io, json, os, re, sys, unicodedata
 from datetime import datetime, UTC
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 import boto3
 from bs4 import BeautifulSoup
 import markdown as md
 from pypdf import PdfReader
 
+# -------------------------
+# S3 helpers
+# -------------------------
 def read_s3_bytes(bucket: str, key: str) -> bytes:
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=bucket, Key=key)
@@ -18,29 +21,32 @@ def load_text_from_s3(bucket: str, key: str) -> str:
         return pdf_to_text(raw)
     else:
         return raw.decode("utf-8", errors="ignore")
-    
+
 def write_s3_text(bucket: str, key: str, text: str):
     s3 = boto3.client("s3")
     s3.put_object(Bucket=bucket, Key=key, Body=text.encode("utf-8"), ContentType="application/json")
 
 def list_s3_keys(bucket: str, prefix: str) -> List[str]:
     s3 = boto3.client("s3")
-    keys = []
-    token = None
+    keys, token = [], None
     while True:
         kwargs = {"Bucket": bucket, "Prefix": prefix}
-        if token: kwargs["ContinuationToken"] = token
+        if token:
+            kwargs["ContinuationToken"] = token
         resp = s3.list_objects_v2(**kwargs)
         for it in resp.get("Contents", []):
-            key = it["Key"]
-            if key.lower().endswith((".md", ".markdown", ".html", ".htm", ".txt", ".pdf")):
-                keys.append(key)
+            k = it["Key"]
+            if k.lower().endswith((".md", ".markdown", ".html", ".htm", ".txt", ".pdf")):
+                keys.append(k)
         if resp.get("IsTruncated"):
             token = resp.get("NextContinuationToken")
         else:
             break
     return keys
 
+# -------------------------
+# Extraction / normalization
+# -------------------------
 def md_or_html_to_text(content: str, ext: str) -> str:
     if ext.lower() in [".md", ".markdown"]:
         html = md.markdown(content)
@@ -49,13 +55,14 @@ def md_or_html_to_text(content: str, ext: str) -> str:
         text = BeautifulSoup(content, "html.parser").get_text(separator="\n")
     else:
         text = content
+    # light whitespace tidy first
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
+    # then full normalization
+    return normalize_text(text.strip())
 
 def pdf_to_text(content_bytes: bytes) -> str:
-    from io import BytesIO
-    reader = PdfReader(BytesIO(content_bytes))
+    reader = PdfReader(io.BytesIO(content_bytes))
     pages = []
     for p in reader.pages:
         try:
@@ -63,39 +70,116 @@ def pdf_to_text(content_bytes: bytes) -> str:
         except Exception:
             pages.append("")
     text = "\n\n".join(pages)
-    return re.sub(r"\n{3,}", "\n\n", text).strip()
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return normalize_text(text.strip())
 
-def rough_tokenize(s: str) -> List[str]:
-    return re.findall(r"[A-Za-z0-9]+|[^\sA-Za-z0-9]", s)
+_BULLETS = ["•", "●", "▪", "◦", "‣"]
+_SOFT = "\u00ad"  # soft hyphen
+_SENT_SPLIT = re.compile(r"(?<=[\.!?])\s+(?=[A-Z(\"\']))")
 
+def normalize_text(s: str) -> str:
+    if not s:
+        return s
+    s = unicodedata.normalize("NFKC", s)
+
+    # remove soft hyphens and fix hyphenation across line breaks: "multi-\nlayer" -> "multi-layer"
+    s = s.replace(_SOFT, "")
+    s = re.sub(r"-\s*\n\s*", "-", s)
+
+    # convert various bullets to "- "
+    for b in _BULLETS:
+        s = s.replace(b, "- ")
+
+    s = s.replace("\r", "")
+    # collapse excessive whitespace/newlines
+    s = re.sub(r"[ \t]+", " ", s)
+    s = re.sub(r"\n{3,}", "\n\n", s)
+
+    # insert missing spaces that PDFs often drop
+    s = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", s)      # lower→Upper
+    s = re.sub(r"(?<=[0-9])(?=[A-Za-z])", " ", s)   # digit→alpha
+    s = re.sub(r"(?<=[A-Za-z])(?=[0-9])", " ", s)   # alpha→digit
+
+    # punctuation spacing: no space before, one after
+    s = re.sub(r"\s+([,.;:!?])", r"\1", s)
+    s = re.sub(r"([,.;:!?])([A-Za-z])", r"\1 \2", s)
+
+    # final squeeze
+    s = re.sub(r"\s+", " ", s)
+    s = re.sub(r"(\n\s*)+", "\n", s)
+    return s.strip()
+
+def split_sentences(s: str) -> List[str]:
+    parts = []
+    for para in s.split("\n"):
+        para = para.strip()
+        if not para:
+            continue
+        parts.extend(_SENT_SPLIT.split(para))
+    return [p.strip() for p in parts if p.strip()]
+
+def est_tokens(s: str) -> int:
+    # rough estimate ~4 chars per token
+    return max(1, len(s) // 4)
+
+# -------------------------
+# Chunking
+# -------------------------
 def chunk_text(text: str, max_tokens: int = 600, overlap: int = 50) -> List[str]:
-    toks = rough_tokenize(text)
-    chunks = []
-    start = 0
-    n = len(toks)
-    if n == 0:
+    """
+    Sentence-aware packer: fills chunks up to ~max_tokens (rough estimate),
+    with sentence overlap for recall.
+    """
+    sents = split_sentences(text)
+    if not sents:
         return []
-    while start < n:
-        end = min(n, start + max_tokens)
-        chunk = "".join(toks[start:end]).replace("##", "")
-        chunk = " ".join(re.findall(r"[A-Za-z0-9]+|[^\sA-Za-z0-9]", chunk))
-        chunks.append(chunk.strip())
-        if end == n:
-            break
-        start = max(0, end - overlap)
-    return [c for c in chunks if c]
+
+    chunks, cur, cur_tok = [], [], 0
+    for sent in sents:
+        t = est_tokens(sent)
+        if cur and (cur_tok + t > max_tokens):
+            chunks.append(" ".join(cur).strip())
+            # carry overlap sentences into next chunk
+            back, btok = [], 0
+            for s in reversed(cur):
+                st = est_tokens(s)
+                if btok + st > overlap:
+                    break
+                back.append(s)
+                btok += st
+            cur = list(reversed(back))
+            cur_tok = sum(est_tokens(s) for s in cur)
+
+        cur.append(sent)
+        cur_tok += t
+
+    if cur:
+        chunks.append(" ".join(cur).strip())
+
+    return chunks
 
 def stable_chunk_id(doc_key: str, idx: int) -> str:
     h = hashlib.sha256(f"{doc_key}::{idx}".encode("utf-8")).hexdigest()[:16]
     return f"{h}-{idx:04d}"
 
+# -------------------------
+# Pipeline
+# -------------------------
+def guess_doc_type(key: str) -> str:
+    name = key.lower()
+    if "resume" in name or "cv" in name: return "resume"
+    if "project" in name or "portfolio" in name: return "projects"
+    if "bio" in name or "about" in name: return "bio"
+    if "faq" in name or "qna" in name: return "faq"
+    return "doc"
 
 def process_doc(bucket: str, key: str, title_hint: str, base_url: str, max_tokens: int, overlap: int) -> List[Dict[str, Any]]:
     raw = load_text_from_s3(bucket, key)
     ext = os.path.splitext(key)[1]
-    text = md_or_html_to_text(raw, ext)
+    text = md_or_html_to_text(raw, ext)  # includes normalize_text()
     parts = chunk_text(text, max_tokens=max_tokens, overlap=overlap)
-    items = []
+
+    items: List[Dict[str, Any]] = []
     for i, content in enumerate(parts):
         items.append({
             "id": None,
@@ -114,16 +198,11 @@ def process_doc(bucket: str, key: str, title_hint: str, base_url: str, max_token
         })
     return items
 
-def guess_doc_type(key: str) -> str:
-    name = key.lower()
-    if "resume" in name or "cv" in name: return "resume"
-    if "project" in name or "portfolio" in name: return "projects"
-    if "bio" in name or "about" in name: return "bio"
-    if "faq" in name or "qna" in name: return "faq"
-    return "doc"
-
+# -------------------------
+# CLI
+# -------------------------
 def main():
-    ap = argparse.ArgumentParser(description="Chunk Markdown/HTML/TXT from S3 into JSONL.")
+    ap = argparse.ArgumentParser(description="Chunk Markdown/HTML/TXT/PDF from S3 into JSONL.")
     ap.add_argument("--bucket", required=True, help="S3 bucket name")
     ap.add_argument("--prefix-raw", default="raw/", help="S3 prefix of input docs")
     ap.add_argument("--prefix-out", default="chunked/", help="S3 prefix for output JSONL")
@@ -138,7 +217,7 @@ def main():
         print(f"No input docs found under s3://{args.bucket}/{args.prefix_raw}", file=sys.stderr)
         sys.exit(1)
 
-    all_items = []
+    all_items: List[Dict[str, Any]] = []
     for k in keys:
         title_hint = os.path.splitext(os.path.basename(k))[0].replace("-", " ").title()
         items = process_doc(args.bucket, k, title_hint, args.base_url, args.max_tokens, args.overlap)
