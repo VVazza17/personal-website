@@ -16,6 +16,7 @@ const EMBED_FN_NAME = process.env.EMBED_FN_NAME!;
 const CACHE_TTL_HOURS = Number(process.env.CACHE_TTL_HOURS || "48");
 const USE_RERANK = (process.env.USE_RERANK || "false").toLowerCase() === "true";
 const RERANK_FN_NAME = process.env.RERANK_FN_NAME;
+const GEN_FN_NAME = process.env.GEN_FN_NAME;
 
 const CORS = {
     "Content-Type": "application/json",
@@ -89,6 +90,19 @@ async function rerank(query: string, cands: any[]): Promise<any[]> {
   return inner.results || cands;
 }
 
+async function generateAnswer(question: string, contexts: any[]) {
+  if (!GEN_FN_NAME) return null;
+  const payload = { question, contexts: contexts.map(c => ({ title: c.title, content: c.content })), max_new_tokens: 220 };
+  const res = await lambdaClient.send(new InvokeCommand({
+    FunctionName: GEN_FN_NAME,
+    Payload: Buffer.from(JSON.stringify({ body: JSON.stringify(payload) })),
+  }));
+  const outer = JSON.parse(Buffer.from(res.Payload as Uint8Array).toString() || "{}");
+  if (outer.statusCode !== 200) return null;
+  const inner = JSON.parse(outer.body);
+  return inner.answer as string;
+}
+
 export const handler = async (event: APIGatewayProxyEvent) => {
     try {
         const body = event.body ? JSON.parse(event.body) : {};
@@ -146,13 +160,14 @@ export const handler = async (event: APIGatewayProxyEvent) => {
         // 6) Rerank
         const top = await rerank(message, rough);
 
-        // 7) Build a stub response (generator comes next)
-        const retrieved = rows.length;
-        const answer =
-          `Found ${retrieved} relevant snippets (generator not wired yet).` +
-          "\n" + top.map((t: any, i: number) => `[${i + 1}] ${t.title} — ${t.preview}...`).join("\n");
-          
-        const value = { answer, sources: top, latency_ms: Date.now() - t0 };
+        // 7) Generate final answer
+        const llmAnswer = await generateAnswer(message, top.slice(0, 6));
+        const answer = llmAnswer ?? (
+          `Found ${rows.length} relevant snippets (generator fallback).\n` +
+          top.map((t: any, i: number) => `[${i + 1}] ${t.title} — ${t.preview}...`).join("\n")
+        );
+
+        const value = { answer, sources: top.slice(0, 6), latency_ms: Date.now() - t0 };
 
         // 8) cache it
         await cachePut(cacheKey, value);

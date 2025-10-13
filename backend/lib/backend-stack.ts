@@ -58,9 +58,17 @@ export class BackendStack extends cdk.Stack {
     // Reranker Lambda
     const rerankFn = new DockerImageFunction(this, "RerankFn", {
       code: DockerImageCode.fromImageAsset(path.join(__dirname, "..", "..", "ml", "reranker")),
-      memorySize: 1024,
-      timeout: cdk.Duration.seconds(20),
+      memorySize: 1536,
+      timeout: cdk.Duration.seconds(60),
       environment: { RERANK_MODEL: "cross-encoder/ms-marco-MiniLM-L-6-v2" },
+    });
+
+    // Generator Lambda
+    const genFn = new DockerImageFunction(this, "GenFn", {
+      code: DockerImageCode.fromImageAsset(path.join(__dirname, "..", "..", "ml", "generator")),
+      memorySize: 2048,
+      timeout: cdk.Duration.seconds(120),
+      environment: { GEN_MODEL: "google/flan-t5-small" },
     });
 
     // GET /projects
@@ -94,6 +102,8 @@ export class BackendStack extends cdk.Stack {
     embedFn.grantInvoke(chatPost);
     rerankFn.grantInvoke(chatPost);
     chatPost.addEnvironment("RERANK_FN_NAME", rerankFn.functionName);
+    genFn.grantInvoke(chatPost);
+    chatPost.addEnvironment("GEN_FN_NAME", genFn.functionName);
 
     const api = new RestApi(this, 'PersonalSiteApi', {
       defaultCorsPreflightOptions: {
