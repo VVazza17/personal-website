@@ -5,7 +5,11 @@ ENV HF_HOME=/var/task/hf \
     TRANSFORMERS_CACHE=/var/task/hf/transformers \
     SENTENCE_TRANSFORMERS_HOME=/var/task/hf/sentencetransformers \
     TORCH_HOME=/var/task/hf/torch \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    TOKENIZERS_PARALLELISM=false
+
 
 RUN pip install --upgrade pip
 

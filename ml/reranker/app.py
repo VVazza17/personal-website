@@ -2,6 +2,7 @@ import json, os
 from sentence_transformers import CrossEncoder
 
 MODEL_NAME = os.getenv("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+BATCH = int(os.getenv("RERANK_BATCH", "16"))
 model = CrossEncoder(MODEL_NAME)
 
 def _resp(code, obj):
@@ -10,8 +11,7 @@ def _resp(code, obj):
 def handler(event, _ctx):
     try:
         body = event.get("body")
-        if isinstance(body, (bytes, bytearray)):
-            body = body.decode("utf-8")
+        if isinstance(body, (bytes, bytearray)): body = body.decode("utf-8")
         payload = json.loads(body) if isinstance(body, str) else (body or {})
 
         query = payload.get("query")
@@ -22,7 +22,7 @@ def handler(event, _ctx):
             return _resp(400, {"error": "Provide 'query' and 'candidates' (list)"})
 
         pairs = [(query, c.get("content","")) for c in cands]
-        scores = model.predict(pairs)  # higher = better
+        scores = model.predict(pairs, batch_size=BATCH, show_progress_bar=False)
         for c, s in zip(cands, scores.tolist()):
             c["rerank_score"] = float(s)
 

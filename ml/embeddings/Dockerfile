@@ -3,7 +3,10 @@ FROM public.ecr.aws/lambda/python:3.11
 ENV HF_HOME=/tmp/hf \
     TRANSFORMERS_CACHE=/tmp/hf/transformers \
     SENTENCE_TRANSFORMERS_HOME=/tmp/hf/sentencetransformers \
-    TORCH_HOME=/tmp/hf/torch
+    TORCH_HOME=/tmp/hf/torch \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    TOKENIZERS_PARALLELISM=false
 
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
