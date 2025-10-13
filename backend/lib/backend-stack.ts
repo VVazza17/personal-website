@@ -67,7 +67,7 @@ export class BackendStack extends cdk.Stack {
     const genFn = new DockerImageFunction(this, "GenFn", {
       code: DockerImageCode.fromImageAsset(path.join(__dirname, "..", "..", "ml", "generator")),
       memorySize: 2048,
-      timeout: cdk.Duration.seconds(120),
+      timeout: cdk.Duration.seconds(60),
       environment: { GEN_MODEL: "google/flan-t5-small" },
     });
 
@@ -92,9 +92,11 @@ export class BackendStack extends cdk.Stack {
         PG_SCHEMA: process.env.PG_SCHEMA ?? 'public',
         PG_CONN: process.env.PG_CONN ?? '',
         EMBED_FN_NAME: embedFn.functionName,
+        RERANK_FN_NAME: rerankFn.functionName,
+        GEN_FN_NAME: genFn.functionName,
       },
       memorySize: 1024,
-      timeout: cdk.Duration.seconds(45),
+      timeout: cdk.Duration.seconds(28),
     });
     table.grantWriteData(chatPost);
     cacheTable.grantReadWriteData(chatPost);

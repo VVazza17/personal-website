@@ -92,7 +92,7 @@ async function rerank(query: string, cands: any[]): Promise<any[]> {
 
 async function generateAnswer(question: string, contexts: any[]) {
   if (!GEN_FN_NAME) return null;
-  const payload = { question, contexts: contexts.map(c => ({ title: c.title, content: c.content })), max_new_tokens: 220 };
+  const payload = { question, contexts: contexts.map(c => ({ title: c.title, content: c.content })), max_new_tokens: 120 };
   const res = await lambdaClient.send(new InvokeCommand({
     FunctionName: GEN_FN_NAME,
     Payload: Buffer.from(JSON.stringify({ body: JSON.stringify(payload) })),
@@ -161,7 +161,7 @@ export const handler = async (event: APIGatewayProxyEvent) => {
         const top = await rerank(message, rough);
 
         // 7) Generate final answer
-        const llmAnswer = await generateAnswer(message, top.slice(0, 6));
+        const llmAnswer = await generateAnswer(message, top.slice(0, 4));
         const answer = llmAnswer ?? (
           `Found ${rows.length} relevant snippets (generator fallback).\n` +
           top.map((t: any, i: number) => `[${i + 1}] ${t.title} — ${t.preview}...`).join("\n")
