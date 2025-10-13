@@ -41,7 +41,7 @@ export class BackendStack extends cdk.Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    // Embeddings Lambda (Docker)
+    // Embeddings Lambda
     const embedFn = new DockerImageFunction(this, 'EmbedFn', {
       code: DockerImageCode.fromImageAsset(path.join(__dirname, '..', '..', 'ml', 'embeddings')),
       memorySize: 1536,
@@ -53,6 +53,14 @@ export class BackendStack extends cdk.Stack {
         SENTENCE_TRANSFORMERS_HOME: '/tmp/hf/sentencetransformers',
         TORCH_HOME: '/tmp/hf/torch',
       },
+    });
+
+    // Reranker Lambda
+    const rerankFn = new DockerImageFunction(this, "RerankFn", {
+      code: DockerImageCode.fromImageAsset(path.join(__dirname, "..", "..", "ml", "reranker")),
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(20),
+      environment: { RERANK_MODEL: "cross-encoder/ms-marco-MiniLM-L-6-v2" },
     });
 
     // GET /projects
@@ -84,6 +92,8 @@ export class BackendStack extends cdk.Stack {
     cacheTable.grantReadWriteData(chatPost);
     docsBucket.grantRead(chatPost)
     embedFn.grantInvoke(chatPost);
+    rerankFn.grantInvoke(chatPost);
+    chatPost.addEnvironment("RERANK_FN_NAME", rerankFn.functionName);
 
     const api = new RestApi(this, 'PersonalSiteApi', {
       defaultCorsPreflightOptions: {

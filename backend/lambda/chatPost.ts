@@ -14,6 +14,8 @@ const PG_CONN = process.env.PG_CONN!;
 const PG_SCHEMA = process.env.PG_SCHEMA || "public";
 const EMBED_FN_NAME = process.env.EMBED_FN_NAME!;
 const CACHE_TTL_HOURS = Number(process.env.CACHE_TTL_HOURS || "48");
+const USE_RERANK = (process.env.USE_RERANK || "false").toLowerCase() === "true";
+const RERANK_FN_NAME = process.env.RERANK_FN_NAME;
 
 const CORS = {
     "Content-Type": "application/json",
@@ -74,6 +76,19 @@ async function knn(queryVec: number[]) {
   return rows;
 }
 
+async function rerank(query: string, cands: any[]): Promise<any[]> {
+  if (!USE_RERANK || !RERANK_FN_NAME) return cands;
+  const payload = { query, candidates: cands, top_k: 4 };
+  const res = await lambdaClient.send(new InvokeCommand({
+    FunctionName: RERANK_FN_NAME,
+    Payload: Buffer.from(JSON.stringify({ body: JSON.stringify(payload) })),
+  }));
+  const outer = JSON.parse(Buffer.from(res.Payload as Uint8Array).toString() || "{}");
+  if (outer.statusCode !== 200) return cands;
+  const inner = JSON.parse(outer.body);
+  return inner.results || cands;
+}
+
 export const handler = async (event: APIGatewayProxyEvent) => {
     try {
         const body = event.body ? JSON.parse(event.body) : {};
@@ -118,27 +133,35 @@ export const handler = async (event: APIGatewayProxyEvent) => {
         // 4) kNN in Neon
         const rows = await knn(qVec);
 
-        // 5) pack a stub response (generator comes next)
-        const top = rows.slice(0, 4).map((r: any, i: number) => ({
-            id: r.chunk_id,
-            title: r.title,
-            url: r.url,
-            preview: (r.content || "").slice(0, 220),
-            similarity: Number((r.similarity ?? 0).toFixed(3)),
+        // 5) Build rough candidates from kNN
+        const rough = rows.slice(0, 8).map((r: any) => ({
+          id: r.chunk_id, 
+          title: r.title, 
+          url: r.url,
+          content: r.content, 
+          preview: (r.content||"").slice(0, 220),
+          similarity: Number((r.similarity ?? 0).toFixed(3)),
         }));
 
-        const answer = `Found ${rows.length} relevant snippets (generator not wired yet).` +
-        "\n" + top.map((t, i) => `[${i + 1}] ${t.title} — ${t.preview}...`).join("\n");
+        // 6) Rerank
+        const top = await rerank(message, rough);
 
+        // 7) Build a stub response (generator comes next)
+        const retrieved = rows.length;
+        const answer =
+          `Found ${retrieved} relevant snippets (generator not wired yet).` +
+          "\n" + top.map((t: any, i: number) => `[${i + 1}] ${t.title} — ${t.preview}...`).join("\n");
+          
         const value = { answer, sources: top, latency_ms: Date.now() - t0 };
 
-        // 6) cache it
+        // 8) cache it
         await cachePut(cacheKey, value);
 
+        // 9) return built value
         return {
             statusCode: 200,
             headers: CORS,
-            body: JSON.stringify({ ...value, id, createdAt: now })
+            body: JSON.stringify({ ...value, id, createdAt: now, cached: false })
         };
 
     }   catch (e) {
