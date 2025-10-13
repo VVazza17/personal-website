@@ -25,18 +25,15 @@ export async function getProjectById(id) {
   });
 }
 
-export async function sendChatMessage({text, sessionId}) {
-  console.log("POST", `${BASE_URL}/chat`, { text, sessionId })
-
-  return withRetry(async () => {
-    const r = await fetch(`${BASE_URL}/chat`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ sessionId, message: text }),
-    });
-    if (!r.ok) throw new Error("Chat failed");
-    return r.json();
+export async function sendChatMessage({ sessionId, message }) {
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, message }),
   });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data; // { answer, sources, latency_ms, cached, id, createdAt }
 }
 
 export async function submitContact({ name, email, message }) {
