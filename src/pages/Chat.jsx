@@ -3,6 +3,7 @@ import { sendChatMessage, retrieveSnippets } from "../lib/api";
 import { getSessionId } from "../lib/session";
 import { hasWebGPU } from "../lib/llm";
 import { streamAnswer } from "../lib/useChatLLM";
+import { isChitChat } from "../lib/intent";
 
 export default function Chat() {
   useEffect(() => { document.title = "Chat | Kyle Deng"; }, []);
@@ -24,37 +25,50 @@ export default function Chat() {
     if (!text || sending) return;
 
     setSending(true);
-    setMessages((m) => [...m, { role: "user", text }]);
+    setMessages(m => [...m, { role: "user", text }]);
     setInput("");
 
     try {
       if (useLocalLLM) {
-        const { snippets, latency_ms } = await retrieveSnippets(text);
-        let acc = "";
-        setMessages(m => [
-          ...m,
-          { role: "bot", text: "", sources: snippets, meta: { retrieval_ms: latency_ms, mode: "local" } }
-        ]);
-        const idx = messages.length;
+        let snippets = [];
+        let retrievalMs = 0;
+        if (!isChitChat(text)) {
+          const r = await retrieveSnippets(text);
+          snippets = r?.snippets ?? [];
+          retrievalMs = r?.latency_ms ?? 0;
+        }
 
+        let botIndex = -1;
+        setMessages(m => {
+          botIndex = m.length;
+          return [
+            ...m,
+            { role: "bot", text: "", sources: snippets, meta: { retrieval_ms: retrievalMs, mode: "local" } },
+          ];
+        });
+
+        let acc = "";
         await streamAnswer(text, snippets, (tok) => {
           acc += tok;
           setMessages(m => {
             const copy = m.slice();
-            copy[idx] = { ...copy[idx], text: acc };
+            const i = botIndex >= 0 ? botIndex : copy.length - 1;
+            copy[i] = { ...copy[i], text: acc };
             return copy;
           });
         });
-      } else {
-        const res = await sendChatMessage({ sessionId, message: text });
-        setMessages((m) => [
-          ...m,
-          { role: "bot", text: res.answer, sources: res.sources, meta: { latency: res.latency_ms, cached: res.cached, mode: "server" } },
-        ]);
+
+        return;
       }
+
+      const res = await sendChatMessage({ sessionId, message: text });
+      setMessages(m => [
+        ...m,
+        { role: "bot", text: res.answer, sources: res.sources, meta: { latency: res.latency_ms, cached: res.cached, mode: "server" } },
+      ]);
     } catch (err) {
       console.error(err);
-      setMessages((m) => [...m, { role: "bot", text: "Sorry, temporary error. Try again." }]);
+      setMessages(m => [...m, { role: "bot", text: "Sorry, temporary error. Try again." }]);
     } finally {
       setSending(false);
     }
