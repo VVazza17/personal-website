@@ -44,12 +44,14 @@ def upsert_chunks(conn, rows: List[Dict[str, Any]]):
                     url = EXCLUDED.url,
                     content = EXCLUDED.content,
                     metadata = EXCLUDED.metadata,
+                    section = EXCLUDED.section,
                     embedding = EXCLUDED.embedding,
                     updated_at = now();
                 """,
                 (
                     r["title"], r.get("url"), r["chunk_id"],
                     r["content"], json.dumps(r["metadata"]),
+                    r.get("section"),
                     vec_to_pg(r["embedding"])
                 )
             )
