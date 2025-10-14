@@ -115,6 +115,20 @@ export class BackendStack extends cdk.Stack {
       }
     });
 
+    // POST /retrieve
+    const retrieveFn = new NodejsFunction(this, "Retrieve", {
+      entry: path.join(__dirname, "..", "lambda", "retrieve.ts"),
+      runtime: Runtime.NODEJS_20_X,
+      environment: {
+        PG_CONN: process.env.PG_CONN ?? "",
+        PG_SCHEMA: process.env.PG_SCHEMA ?? "public",
+        EMBED_FN_NAME: embedFn.functionName,
+      },
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(10),
+    });
+    embedFn.grantInvoke(retrieveFn);
+
     // /projects
     const projects = api.root.addResource('projects');
     projects.addMethod('GET', new LambdaIntegration(projectsGetAll));
@@ -122,5 +136,9 @@ export class BackendStack extends cdk.Stack {
     // /chat
     const chat = api.root.addResource('chat');
     chat.addMethod('POST', new LambdaIntegration(chatPost));
+
+    // /retrieve
+    const retrieve = api.root.addResource("retrieve");
+    retrieve.addMethod("POST", new LambdaIntegration(retrieveFn));
   }
 }
