@@ -17,14 +17,6 @@ export async function getProjects() {
   });
 }
 
-export async function getProjectById(id) {
-  return withRetry(async () => {
-    const r = await fetch(`${BASE_URL}/projects/${id}`);
-    if (!r.ok) throw new Error("Failed to load project");
-    return r.json();
-  });
-}
-
 export async function sendChatMessage({ sessionId, message }) {
   const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/chat`, {
     method: "POST",
@@ -33,17 +25,16 @@ export async function sendChatMessage({ sessionId, message }) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
-  return data; // { answer, sources, latency_ms, cached, id, createdAt }
+  return data;
 }
 
-export async function submitContact({ name, email, message }) {
-  return withRetry(async () => {
-    const r = await fetch(`${BASE_URL}/contact`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ name, email, message }),
-    });
-    if (!r.ok) throw new Error("Contact failed");
-    return r.json();
+export async function retrieveSnippets(q) {
+  const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/retrieve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ q }),
   });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || "retrieve failed");
+  return data;
 }
