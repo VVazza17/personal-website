@@ -96,7 +96,7 @@ export class BackendStack extends cdk.Stack {
         GEN_FN_NAME: genFn.functionName,
       },
       memorySize: 1024,
-      timeout: cdk.Duration.seconds(28),
+      timeout: cdk.Duration.seconds(45),
     });
     table.grantWriteData(chatPost);
     cacheTable.grantReadWriteData(chatPost);
