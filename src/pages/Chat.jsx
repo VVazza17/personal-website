@@ -8,6 +8,12 @@ import { isChitChat } from "../lib/intent";
 export default function Chat() {
   useEffect(() => { document.title = "Chat | Kyle Deng"; }, []);
 
+  useEffect(() => {
+    if (hasWebGPU()) {
+      import("../lib/llm").then(m => m.getEngine().catch(console.error));
+    }
+  }, []);
+
   const sessionId = getSessionId();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
